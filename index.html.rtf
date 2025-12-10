@@ -1,0 +1,191 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww29200\viewh18400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 <!DOCTYPE html>\
+<html lang="en">\
+<head>\
+  <meta charset="UTF-8" />\
+  <title>Restaurant Live Order Board</title>\
+\
+  <style>\
+    body \{\
+      font-family: Arial, sans-serif;\
+      background: #f4f4f4;\
+      margin: 0;\
+      padding: 20px;\
+    \}\
+\
+    h1 \{\
+      text-align: center;\
+      color: #333;\
+    \}\
+\
+    .container \{\
+      max-width: 900px;\
+      margin: auto;\
+      background: white;\
+      padding: 20px;\
+      border-radius: 10px;\
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);\
+    \}\
+\
+    .order-form input, .order-form textarea \{\
+      width: 100%;\
+      padding: 10px;\
+      margin: 10px 0;\
+      border-radius: 8px;\
+      border: 1px solid #ccc;\
+    \}\
+\
+    .order-form button \{\
+      width: 100%;\
+      padding: 12px;\
+      background: #28a745;\
+      color: white;\
+      border: none;\
+      border-radius: 8px;\
+      cursor: pointer;\
+      font-size: 16px;\
+    \}\
+\
+    .order \{\
+      background: #fff;\
+      padding: 15px;\
+      border-radius: 10px;\
+      margin-bottom: 10px;\
+      border-left: 5px solid #007bff;\
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);\
+    \}\
+\
+    .status-btn \{\
+      background: #007bff;\
+      color: white;\
+      padding: 6px 12px;\
+      border: none;\
+      border-radius: 6px;\
+      cursor: pointer;\
+      margin-top: 10px;\
+    \}\
+\
+    .status \{\
+      font-weight: bold;\
+    \}\
+  </style>\
+</head>\
+\
+<body>\
+\
+<h1>Restaurant Live Order Board</h1>\
+\
+<div class="container">\
+\
+  <!-- ORDER FORM -->\
+  <div class="order-form">\
+    <h2>Add New Order</h2>\
+    <input id="customer" placeholder="Customer Name" />\
+    <input id="items" placeholder="Item Summary (e.g., Burger + Fries)" />\
+    <textarea id="notes" placeholder="Notes (optional)"></textarea>\
+    <button onclick="addOrder()">Add Order</button>\
+  </div>\
+\
+  <hr><br>\
+\
+  <!-- ORDERS LIST -->\
+  <h2>All Orders</h2>\
+  <div id="orders"></div>\
+\
+</div>\
+\
+<!-- FIREBASE SCRIPTS -->\
+<script type="module">\
+  import \{ initializeApp \} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";\
+  import \{\
+    getFirestore, collection, addDoc, updateDoc, doc,\
+    onSnapshot, serverTimestamp\
+  \} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";\
+\
+  // \uc0\u55357 \u56613  YOUR FIREBASE CONFIG (from your screenshot)\
+  const firebaseConfig = \{\
+    apiKey: "AIzaSyDvbWTquJz5Kpg7L5EkCBOtFu9LBTuChC4",\
+    authDomain: "live-orders-c9c59.firebaseapp.com",\
+    projectId: "live-orders-c9c59",\
+    storageBucket: "live-orders-c9c59.firebasestorage.app",\
+    messagingSenderId: "727387567652",\
+    appId: "1:727387567652:web:89640c9ba3b24491704ab1"\
+  \};\
+\
+  // Initialize Firebase\
+  const app = initializeApp(firebaseConfig);\
+  const db = getFirestore(app);\
+\
+  // ---------------------------------------------------\
+  // ADD ORDER\
+  // ---------------------------------------------------\
+  async function addOrder() \{\
+    const customer = document.getElementById("customer").value;\
+    const items = document.getElementById("items").value;\
+    const notes = document.getElementById("notes").value;\
+\
+    if (!customer || !items) \{\
+      alert("Customer name and item summary required!");\
+      return;\
+    \}\
+\
+    await addDoc(collection(db, "orders"), \{\
+      customer,\
+      items,\
+      notes,\
+      status: "New",\
+      createdAt: serverTimestamp()\
+    \});\
+\
+    document.getElementById("customer").value = "";\
+    document.getElementById("items").value = "";\
+    document.getElementById("notes").value = "";\
+  \}\
+\
+  // ---------------------------------------------------\
+  // MOVE ORDER TO NEXT STATUS\
+  // ---------------------------------------------------\
+  async function nextStatus(id, current) \{\
+    const flow = ["New", "Preparing", "Ready", "Collected"];\
+    const next = flow[flow.indexOf(current) + 1];\
+\
+    if (!next) return;\
+\
+    await updateDoc(doc(db, "orders", id), \{ status: next \});\
+  \}\
+\
+  // ---------------------------------------------------\
+  // REAL-TIME LISTENER\
+  // ---------------------------------------------------\
+  onSnapshot(collection(db, "orders"), (snapshot) => \{\
+    let html = "";\
+\
+    snapshot.forEach(docSnap => \{\
+      const o = docSnap.data();\
+\
+      html += `\
+      <div class="order">\
+        <div><strong>$\{o.customer\}</strong></div>\
+        <div>$\{o.items\}</div>\
+        <div><em>$\{o.notes || ""\}</em></div>\
+        <div class="status">Status: $\{o.status\}</div>\
+        <button class="status-btn" onclick="nextStatus('$\{docSnap.id\}', '$\{o.status\}')">\
+          Next: Move to next stage\
+        </button>\
+      </div>`;\
+    \});\
+\
+    document.getElementById("orders").innerHTML = html;\
+  \});\
+\
+  window.nextStatus = nextStatus;\
+</script>\
+\
+</body>\
+</html>}
